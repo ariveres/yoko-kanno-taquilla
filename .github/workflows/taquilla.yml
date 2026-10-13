@@ -14,7 +14,7 @@ jobs:
       - name: Comprobar si la taquilla está abierta
         env:
           URL: https://lucca2026.luccacomicsandgames.com/it/programma/yoko-kanno-celebration
-          TEXTO_SIN_VENTA: Presto online maggiori informazioni
+          TEXTO_SIN_VENTA: prueba
         run: |
           set -euo pipefail
 
