@@ -1,0 +1,44 @@
+name: Vigilar taquilla Yoko Kanno
+
+on:
+  schedule:
+    # Cada 30 minutos (en UTC). Minutos 7 y 37 para evitar la congestión de GitHub en las horas en punto.
+    - cron: '7,37 * * * *'
+  workflow_dispatch: # Permite lanzarlo a mano desde la pestaña Actions
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Comprobar si la taquilla está abierta
+        env:
+          URL: https://lucca2026.luccacomicsandgames.com/it/programma/yoko-kanno-celebration
+          TEXTO_SIN_VENTA: Presto online maggiori informazioni
+        run: |
+          set -euo pipefail
+
+          curl -sSfL --retry 3 --retry-delay 20 --max-time 60 \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36" \
+            -o pagina.html "$URL"
+
+          # Bloque de reserva del evento, sin etiquetas HTML
+          bloque=$(grep -oP 'booking-instructions">.*?</div>' pagina.html | sed -E 's/<[^>]+>//g; s/booking-instructions">//' || true)
+
+          if [ -z "$bloque" ]; then
+            echo "::error::No se encuentra el bloque de reserva. La página ha cambiado: revísala a mano. $URL"
+            exit 1
+          fi
+
+          echo "Texto actual del bloque de reserva: $bloque"
+
+          if [[ "$bloque" == *"$TEXTO_SIN_VENTA"* ]]; then
+            echo "Sin cambios: aún no hay entradas a la venta."
+          else
+            echo "::error::¡El bloque de reserva ha cambiado! Posible apertura de taquilla: $bloque — $URL"
+            echo "## ¡La taquilla puede estar abierta! 🎫" >> "$GITHUB_STEP_SUMMARY"
+            echo "$bloque" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "$URL" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
